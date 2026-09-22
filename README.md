@@ -44,13 +44,18 @@ docker compose up --build
 1. **Auth**：JWT 登录（OAuth2 Password），`/api/auth/login`、`/api/auth/me`
 2. **Hatchery 育苗场**：`name`、`seawaterSource`、`notes`
 3. **Pond 育苗塘**：`hatcheryId`、`pondCode`、`species`、`volumeM3`、`status(stocked|dry|quarantine)`；同场 `pondCode` 唯一
-4. **WaterSample 水质样**：`pondId`、`sampledAt`、`tempC`、`salinityPpt`、`doMgL`、`ph`、`notes`；`doMgL > 0` 且 `ph ∈ [6,9]`，否则返回 **400**
+4. **WaterSample 水质样**：`pondId`、`sampledAt`、`tempC`、`salinityPpt`、`doMgL`、`ph`、`notes`；`doMgL > 0` 且 `ph ∈ [6,9]`，否则返回 **400**。**高盐复测规则**：同一塘口按采样时刻排序的最近两份水样盐度均 **≥ 35 ppt** 时，禁止再登记第三份（返回 **400** 中文拦截原因），须先有复测工单；工单进行中仅允许登记**恰好 1 份**复测水样，且其盐度必须 **< 32 ppt**（≥ 32 返回 400），复测样通过 `workOrderId` 关联工单
 5. **FeedEvent 投喂**：`pondId`、`fedAt`、`feedType`、`amountKg`、`operatorName`
-6. **Dashboard**：塘总数、quarantine 数、近 24h 采样数、近 7 日投喂总量 kg
+6. **WorkOrder 高盐复测工单**：`pondId`、`triggeredAt`、`closedAt`（可空）、`closeNote`（可空）；同一塘口同时至多一张未关闭工单（数据库部分唯一索引 `closed_at IS NULL`）。触发方式两种：① 登记第二份高盐样时系统在同事务**自动建单**；② `POST /api/work-orders` **手动建单**（仅当最近两份均 ≥ 35 且无未关闭工单，否则 400）。`POST /api/work-orders/{id}/close` 关闭工单，`closeNote` 去首尾空白后**至少 4 个字符**；关闭后该塘恢复常规采样
+7. **Dashboard**：塘总数、quarantine 数、近 24h 采样数、近 7 日投喂总量 kg、**待复测塘数**（= 有未关闭工单的塘 ∪ 最近两份均 ≥ 35 但尚未建工单的塘）
 
 ## 前端页面
 
-Login · Dashboard · Hatcheries · Ponds · WaterSamples · FeedEvents
+Login · Dashboard · Hatcheries · Ponds · WaterSamples · WorkOrders（复测工单） · FeedEvents
+
+> 种子演示：塘口 **A-01** 已预置最近两份高盐样（35.4 / 36.1 ppt）且尚未建工单——在「水质样」页对 A-01 继续采样会被拦截，可一键生成复测工单（或在「复测工单」页手动建单）走完复测关闭流程；B-01 仅有一份低盐样，可连续登记两份 ≥ 35 的水样观察**自动建单**。
+
+> 注意：后端用 `create_all` 建表，不会修改已存在的表结构。升级含本特性的版本时须重建数据卷：`docker compose down -v && docker compose up --build`。
 
 ## 本地开发（可选）
 
@@ -89,16 +94,17 @@ TideNursery-01/
 │       ├── database.py
 │       ├── auth.py
 │       ├── seed.py
-│       ├── models/
-│       ├── schemas/
-│       └── routers/
+│       ├── models/（含 work_order.py）
+│       ├── schemas/（含 work_order.py）
+│       ├── services/（retest.py：35/32 阈值与采样拦截决策树）
+│       └── routers/（含 work_orders.py）
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
     ├── package.json
     ├── vite.config.ts
     └── src/
-        ├── pages/
+        ├── pages/（含 WorkOrders.tsx 复测工单页）
         ├── components/
         └── api/
 ```

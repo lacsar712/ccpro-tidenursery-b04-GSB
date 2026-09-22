@@ -3,7 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routers import auth, hatcheries, ponds, water_samples, feed_events, dashboard
+from app.routers import auth, hatcheries, ponds, water_samples, work_orders, feed_events, dashboard
 
 app = FastAPI(title="TideNursery API", version="1.0.0")
 
@@ -32,6 +32,7 @@ app.include_router(auth.router)
 app.include_router(hatcheries.router)
 app.include_router(ponds.router)
 app.include_router(water_samples.router)
+app.include_router(work_orders.router)
 app.include_router(feed_events.router)
 app.include_router(dashboard.router)
 

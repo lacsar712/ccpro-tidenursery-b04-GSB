@@ -225,7 +225,7 @@ th {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   margin-top: 20px;
 }
@@ -276,6 +276,66 @@ th {
 .badge.stocked {
   background: #e3f7f4;
   color: #1a7a6c;
+}
+
+.badge.pending {
+  background: #fdeceb;
+  color: var(--danger);
+}
+
+.badge.waiting,
+.badge.alert {
+  background: #fff6e5;
+  color: var(--warn);
+}
+
+.badge.closed {
+  background: #edf0f2;
+  color: #607078;
+}
+
+.cell-badge {
+  margin-left: 6px;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 12px 0;
+  font-size: 14px;
+  border: 1px solid transparent;
+}
+
+.notice.info {
+  background: var(--sea-mist);
+  border-color: rgba(26, 166, 184, 0.35);
+  color: var(--sea-deep);
+}
+
+.notice.warn {
+  background: #fff6e5;
+  border-color: rgba(201, 133, 26, 0.35);
+  color: #8a5a10;
+}
+
+.notice a {
+  color: var(--sea-mid);
+  text-decoration: underline;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-actions input {
+  width: 180px;
+  padding: 8px 10px;
 }
 
 .login-page {

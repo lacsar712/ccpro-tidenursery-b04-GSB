@@ -138,6 +138,7 @@ export default function Ponds() {
               <th>品种</th>
               <th>体积 m³</th>
               <th>状态</th>
+              <th>复测</th>
               <th />
             </tr>
           </thead>
@@ -151,6 +152,15 @@ export default function Ponds() {
                 <td>{r.volumeM3}</td>
                 <td>
                   <span className={`badge ${r.status}`}>{r.status}</span>
+                </td>
+                <td>
+                  {r.retestPending ? (
+                    <span className="badge pending">待复测</span>
+                  ) : r.retestAlert ? (
+                    <span className="badge alert">待复测</span>
+                  ) : (
+                    '—'
+                  )}
                 </td>
                 <td>
                   <button className="btn ghost" onClick={() => remove(r.id)}>

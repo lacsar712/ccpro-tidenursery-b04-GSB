@@ -34,3 +34,5 @@ class PondOut(BaseModel):
     species: str
     volume_m3: float = Field(serialization_alias="volumeM3")
     status: PondStatus
+    retest_pending: bool = Field(default=False, serialization_alias="retestPending")
+    retest_alert: bool = Field(default=False, serialization_alias="retestAlert")

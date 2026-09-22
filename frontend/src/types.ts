@@ -19,6 +19,8 @@ export type Pond = {
   species: string
   volumeM3: number
   status: 'stocked' | 'dry' | 'quarantine'
+  retestPending?: boolean
+  retestAlert?: boolean
 }
 
 export type WaterSample = {
@@ -30,6 +32,20 @@ export type WaterSample = {
   doMgL: number
   ph: number
   notes?: string | null
+  workOrderId?: number | null
+}
+
+export type WorkOrder = {
+  id: number
+  pondId: number
+  pondCode: string
+  triggeredAt: string
+  closedAt: string | null
+  closeNote: string | null
+  status: 'open' | 'closed'
+  retestSampleId: number | null
+  retestSalinity: number | null
+  retestSampledAt: string | null
 }
 
 export type FeedEvent = {
@@ -46,4 +62,5 @@ export type DashboardStats = {
   quarantineCount: number
   samplesLast24h: number
   feedKgLast7d: number
+  retestPendingCount: number
 }

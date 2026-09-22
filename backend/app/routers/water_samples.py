@@ -9,6 +9,7 @@ from app.models.pond import Pond
 from app.models.user import User
 from app.models.water_sample import WaterSample
 from app.schemas.water_sample import WaterSampleCreate, WaterSampleOut
+from app.services.retest import RetestGateError, process_sample_creation
 
 router = APIRouter(prefix="/api/water-samples", tags=["water-samples"])
 
@@ -34,19 +35,20 @@ def create_sample(
     pond = db.query(Pond).filter(Pond.id == payload.pond_id).first()
     if not pond:
         raise HTTPException(status_code=400, detail="塘口不存在")
-    item = WaterSample(
-        pond_id=payload.pond_id,
-        sampled_at=payload.sampled_at,
-        temp_c=payload.temp_c,
-        salinity_ppt=payload.salinity_ppt,
-        do_mg_l=payload.do_mg_l,
-        ph=payload.ph,
-        notes=payload.notes,
-    )
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
+    try:
+        return process_sample_creation(
+            db,
+            pond_id=payload.pond_id,
+            sampled_at=payload.sampled_at,
+            temp_c=payload.temp_c,
+            salinity_ppt=payload.salinity_ppt,
+            do_mg_l=payload.do_mg_l,
+            ph=payload.ph,
+            notes=payload.notes,
+        )
+    except RetestGateError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.delete("/{sample_id}", status_code=status.HTTP_204_NO_CONTENT)

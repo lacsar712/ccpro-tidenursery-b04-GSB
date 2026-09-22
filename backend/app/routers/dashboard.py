@@ -11,6 +11,7 @@ from app.models.pond import Pond
 from app.models.user import User
 from app.models.water_sample import WaterSample
 from app.schemas.dashboard import DashboardStats
+from app.services.retest import restricted_pond_ids
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -42,4 +43,5 @@ def get_stats(
         quarantine_count=quarantine_count,
         samples_last_24h=samples_last_24h,
         feed_kg_last_7d=float(feed_kg_last_7d),
+        retest_pending_count=len(restricted_pond_ids(db)),
     )

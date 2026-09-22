@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Pond, WaterSample } from '../types'
+import type { Pond, WaterSample, WorkOrder } from '../types'
 
 function nowLocal() {
   const d = new Date()
@@ -21,16 +22,19 @@ const empty = {
 export default function WaterSamples() {
   const [ponds, setPonds] = useState<Pond[]>([])
   const [rows, setRows] = useState<WaterSample[]>([])
+  const [openOrders, setOpenOrders] = useState<WorkOrder[]>([])
   const [form, setForm] = useState(empty)
   const [error, setError] = useState('')
 
   async function load() {
-    const [ps, ws] = await Promise.all([
+    const [ps, ws, os] = await Promise.all([
       api<Pond[]>('/api/ponds'),
       api<WaterSample[]>('/api/water-samples'),
+      api<WorkOrder[]>('/api/work-orders?status=open'),
     ])
     setPonds(ps)
     setRows(ws)
+    setOpenOrders(os)
     if (!form.pondId && ps[0]) {
       setForm((f) => ({ ...f, pondId: ps[0].id }))
     }
@@ -39,6 +43,21 @@ export default function WaterSamples() {
   useEffect(() => {
     load().catch((e) => setError(e.message))
   }, [])
+
+  // 当前选中塘口的高盐复测状态
+  const latest = rows
+    .filter((r) => r.pondId === form.pondId)
+    .sort(
+      (a, b) =>
+        Date.parse(b.sampledAt) - Date.parse(a.sampledAt) || b.id - a.id
+    )
+    .slice(0, 2)
+  const bothHigh =
+    latest.length === 2 && latest.every((s) => s.salinityPpt >= 35)
+  const openWo =
+    openOrders.find((o) => o.pondId === form.pondId) ?? null
+  const needsOrder = !openWo && bothHigh
+  const retestTaken = !!openWo?.retestSampleId
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -55,6 +74,19 @@ export default function WaterSamples() {
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败')
+    }
+  }
+
+  async function createOrder() {
+    setError('')
+    try {
+      await api('/api/work-orders', {
+        method: 'POST',
+        body: JSON.stringify({ pondId: form.pondId }),
+      })
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '创建工单失败')
     }
   }
 
@@ -77,9 +109,40 @@ export default function WaterSamples() {
     <div>
       <header className="page-header">
         <h1>水质采样</h1>
-        <p className="muted">校验：溶解氧 doMgL &gt; 0，pH ∈ [6, 9]</p>
+        <p className="muted">
+          校验：溶解氧 doMgL &gt; 0，pH ∈ [6, 9]；同塘最近两份盐度均 ≥ 35 ppt
+          触发复测工单，工单中仅允许 1 份盐度 &lt; 32 ppt 的复测样
+        </p>
       </header>
       {error && <div className="error">{error}</div>}
+
+      {needsOrder && (
+        <div className="notice warn">
+          <span>
+            该塘口最近两份水样盐度均 ≥ 35 ppt，已触发高盐复测规则；生成复测工单前无法继续采样。
+          </span>
+          <button type="button" className="btn primary" onClick={createOrder}>
+            生成复测工单
+          </button>
+        </div>
+      )}
+      {openWo && !retestTaken && (
+        <div className="notice info">
+          <span>
+            复测工单 #{openWo.id} 进行中：仅允许登记 1 条复测水样，且复测盐度必须
+            &lt; 32 ppt。
+          </span>
+        </div>
+      )}
+      {openWo && retestTaken && (
+        <div className="notice warn">
+          <span>
+            复测样已登记（{openWo.retestSalinity} ppt），工单 #{openWo.id}{' '}
+            关闭前禁止再次采样；请前往
+            <Link to="/work-orders">「复测工单」</Link>页关闭。
+          </span>
+        </div>
+      )}
 
       <form className="panel form-grid" onSubmit={onSubmit}>
         <label>
@@ -152,7 +215,7 @@ export default function WaterSamples() {
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
         </label>
-        <button type="submit" className="btn primary">
+        <button type="submit" className="btn primary" disabled={retestTaken}>
           登记水质样
         </button>
       </form>
@@ -179,7 +242,12 @@ export default function WaterSamples() {
                 <td>{pondLabel(r.pondId)}</td>
                 <td>{new Date(r.sampledAt).toLocaleString()}</td>
                 <td>{r.tempC}</td>
-                <td>{r.salinityPpt}</td>
+                <td>
+                  {r.salinityPpt}
+                  {r.workOrderId != null && (
+                    <span className="badge waiting cell-badge">复测</span>
+                  )}
+                </td>
                 <td>{r.doMgL}</td>
                 <td>{r.ph}</td>
                 <td>{r.notes || '—'}</td>

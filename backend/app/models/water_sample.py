@@ -18,5 +18,11 @@ class WaterSample(Base):
     do_mg_l: Mapped[float] = mapped_column(Float, nullable=False)
     ph: Mapped[float] = mapped_column(Float, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    work_order_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("work_orders.id"), nullable=True, unique=True, index=True
+    )
 
     pond: Mapped["Pond"] = relationship("Pond", back_populates="water_samples")
+    work_order: Mapped[Optional["WorkOrder"]] = relationship(
+        "WorkOrder", back_populates="retest_sample"
+    )

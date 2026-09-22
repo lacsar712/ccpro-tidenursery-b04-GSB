@@ -28,6 +28,10 @@ export default function Dashboard() {
           <div className="stat-label">隔离塘 (quarantine)</div>
           <div className="stat-value">{stats?.quarantineCount ?? '—'}</div>
         </div>
+        <div className="stat-card warn">
+          <div className="stat-label">待复测塘数</div>
+          <div className="stat-value">{stats?.retestPendingCount ?? '—'}</div>
+        </div>
         <div className="stat-card">
           <div className="stat-label">近 24h 采样数</div>
           <div className="stat-value">{stats?.samplesLast24h ?? '—'}</div>

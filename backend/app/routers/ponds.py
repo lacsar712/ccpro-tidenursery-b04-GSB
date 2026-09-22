@@ -10,8 +10,19 @@ from app.models.hatchery import Hatchery
 from app.models.pond import Pond
 from app.models.user import User
 from app.schemas.pond import PondCreate, PondUpdate, PondOut
+from app.services.retest import open_work_order_pond_ids, restricted_pond_ids
 
 router = APIRouter(prefix="/api/ponds", tags=["ponds"])
+
+
+def _serialize_pond(item: Pond, open_ids: set, alert_ids: set) -> PondOut:
+    out = PondOut.model_validate(item)
+    return out.model_copy(
+        update={
+            "retest_pending": item.id in open_ids,
+            "retest_alert": item.id in alert_ids,
+        }
+    )
 
 
 @router.get("", response_model=List[PondOut])
@@ -23,7 +34,10 @@ def list_ponds(
     q = db.query(Pond)
     if hatchery_id is not None:
         q = q.filter(Pond.hatchery_id == hatchery_id)
-    return q.order_by(Pond.id).all()
+    items = q.order_by(Pond.id).all()
+    open_ids = open_work_order_pond_ids(db)
+    alert_ids = restricted_pond_ids(db) - open_ids
+    return [_serialize_pond(p, open_ids, alert_ids) for p in items]
 
 
 @router.post("", response_model=PondOut, status_code=status.HTTP_201_CREATED)
@@ -61,7 +75,9 @@ def get_pond(
     item = db.query(Pond).filter(Pond.id == pond_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="塘口不存在")
-    return item
+    open_ids = open_work_order_pond_ids(db)
+    alert_ids = restricted_pond_ids(db) - open_ids
+    return _serialize_pond(item, open_ids, alert_ids)
 
 
 @router.put("/{pond_id}", response_model=PondOut)

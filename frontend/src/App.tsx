@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import Hatcheries from './pages/Hatcheries'
 import Ponds from './pages/Ponds'
 import WaterSamples from './pages/WaterSamples'
+import WorkOrders from './pages/WorkOrders'
 import FeedEvents from './pages/FeedEvents'
 
 function PrivateRoute({ children }: { children: ReactNode }) {
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="hatcheries" element={<Hatcheries />} />
         <Route path="ponds" element={<Ponds />} />
         <Route path="water-samples" element={<WaterSamples />} />
+        <Route path="work-orders" element={<WorkOrders />} />
         <Route path="feed-events" element={<FeedEvents />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

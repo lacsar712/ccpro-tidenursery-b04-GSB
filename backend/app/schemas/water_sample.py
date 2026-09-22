@@ -41,3 +41,4 @@ class WaterSampleOut(BaseModel):
     do_mg_l: float = Field(serialization_alias="doMgL")
     ph: float
     notes: Optional[str] = None
+    work_order_id: Optional[int] = Field(None, serialization_alias="workOrderId")

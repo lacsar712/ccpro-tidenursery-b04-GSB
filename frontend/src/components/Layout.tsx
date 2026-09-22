@@ -6,6 +6,7 @@ const links = [
   { to: '/hatcheries', label: '育苗场' },
   { to: '/ponds', label: '育苗塘' },
   { to: '/water-samples', label: '水质样' },
+  { to: '/work-orders', label: '复测工单' },
   { to: '/feed-events', label: '投喂事件' },
 ]
 
