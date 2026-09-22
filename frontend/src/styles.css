@@ -225,7 +225,7 @@ th {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 16px;
   margin-top: 20px;
 }
@@ -236,6 +236,15 @@ th {
 
 .stat-card.warn {
   border-color: rgba(201, 133, 26, 0.35);
+}
+
+.stat-card.danger {
+  border-color: rgba(196, 69, 54, 0.4);
+  background: #fff5f4;
+}
+
+.stat-card.danger .stat-value {
+  color: var(--danger);
 }
 
 .stat-card.accent {
@@ -276,6 +285,51 @@ th {
 .badge.stocked {
   background: #e3f7f4;
   color: #1a7a6c;
+}
+
+.badge.retest {
+  background: #fdeceb;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.sal-high {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.notice {
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.notice.blocked {
+  background: #fdeceb;
+  color: var(--danger);
+  border: 1px solid #f3c4bf;
+}
+
+.notice.retest {
+  background: #fff7e8;
+  color: var(--warn);
+  border: 1px solid #f0d6a8;
+}
+
+.inline-close {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inline-close input {
+  min-width: 150px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .login-page {

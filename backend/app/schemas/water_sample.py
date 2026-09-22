@@ -41,3 +41,6 @@ class WaterSampleOut(BaseModel):
     do_mg_l: float = Field(serialization_alias="doMgL")
     ph: float
     notes: Optional[str] = None
+    retest_ticket_id: Optional[int] = Field(
+        default=None, serialization_alias="retestTicketId"
+    )

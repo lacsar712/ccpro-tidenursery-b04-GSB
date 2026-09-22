@@ -5,6 +5,7 @@ from app.database import SessionLocal
 from app.models.feed_event import FeedEvent
 from app.models.hatchery import Hatchery
 from app.models.pond import Pond
+from app.models.salinity_retest_ticket import SalinityRetestTicket
 from app.models.user import User
 from app.models.water_sample import WaterSample
 
@@ -106,6 +107,25 @@ def seed() -> None:
                         ph=8.0,
                         notes=None,
                     ),
+                    # —— 连续两份高盐（均 ≥ 35），触发高盐复测工单 ——
+                    WaterSample(
+                        pond_id=p2.id,
+                        sampled_at=now - timedelta(hours=2),
+                        temp_c=26.0,
+                        salinity_ppt=35.5,
+                        do_mg_l=5.1,
+                        ph=8.0,
+                        notes="盐度偏高，换水观察",
+                    ),
+                    WaterSample(
+                        pond_id=p2.id,
+                        sampled_at=now - timedelta(hours=1),
+                        temp_c=26.3,
+                        salinity_ppt=36.2,
+                        do_mg_l=5.0,
+                        ph=8.1,
+                        notes="连续高盐，触发复测工单",
+                    ),
                     FeedEvent(
                         pond_id=p1.id,
                         fed_at=now - timedelta(hours=8),
@@ -126,6 +146,13 @@ def seed() -> None:
                         feed_type="微藻饲料",
                         amount_kg=2.5,
                         operator_name="水质技术员",
+                    ),
+                    # p2（A-02）连续两份高盐 → 一张未关闭复测工单，待补一份 < 32 复测样
+                    SalinityRetestTicket(
+                        pond_id=p2.id,
+                        triggered_at=now - timedelta(minutes=50),
+                        closed_at=None,
+                        close_note=None,
                     ),
                 ]
             )

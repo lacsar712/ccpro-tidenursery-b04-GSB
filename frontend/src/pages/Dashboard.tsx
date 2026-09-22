@@ -38,6 +38,10 @@ export default function Dashboard() {
             {stats ? stats.feedKgLast7d.toFixed(2) : '—'}
           </div>
         </div>
+        <div className="stat-card danger">
+          <div className="stat-label">待复测塘数（盐度 ≥ 35）</div>
+          <div className="stat-value">{stats?.retestPendingPonds ?? '—'}</div>
+        </div>
       </div>
     </div>
   )

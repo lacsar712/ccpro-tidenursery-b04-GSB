@@ -10,8 +10,16 @@ from app.models.hatchery import Hatchery
 from app.models.pond import Pond
 from app.models.user import User
 from app.schemas.pond import PondCreate, PondUpdate, PondOut
+from app.services import salinity
 
 router = APIRouter(prefix="/api/ponds", tags=["ponds"])
+
+
+def _annotate(ponds: List[Pond], db: Session) -> List[Pond]:
+    open_ids = salinity.open_ticket_pond_ids(db)
+    for p in ponds:
+        p.retest_pending = p.id in open_ids
+    return ponds
 
 
 @router.get("", response_model=List[PondOut])
@@ -23,7 +31,8 @@ def list_ponds(
     q = db.query(Pond)
     if hatchery_id is not None:
         q = q.filter(Pond.hatchery_id == hatchery_id)
-    return q.order_by(Pond.id).all()
+    ponds = q.order_by(Pond.id).all()
+    return _annotate(ponds, db)
 
 
 @router.post("", response_model=PondOut, status_code=status.HTTP_201_CREATED)
@@ -49,6 +58,7 @@ def create_pond(
         db.rollback()
         raise HTTPException(status_code=400, detail="同场塘口号已存在")
     db.refresh(item)
+    _annotate([item], db)
     return item
 
 
@@ -61,6 +71,7 @@ def get_pond(
     item = db.query(Pond).filter(Pond.id == pond_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="塘口不存在")
+    _annotate([item], db)
     return item
 
 
@@ -87,6 +98,7 @@ def update_pond(
         db.rollback()
         raise HTTPException(status_code=400, detail="同场塘口号已存在")
     db.refresh(item)
+    _annotate([item], db)
     return item
 
 

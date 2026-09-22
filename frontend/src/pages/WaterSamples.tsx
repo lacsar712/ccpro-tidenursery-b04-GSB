@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Pond, WaterSample } from '../types'
+import type { Pond, PondSalinityStatus, WaterSample } from '../types'
 
 function nowLocal() {
   const d = new Date()
@@ -23,6 +24,7 @@ export default function WaterSamples() {
   const [rows, setRows] = useState<WaterSample[]>([])
   const [form, setForm] = useState(empty)
   const [error, setError] = useState('')
+  const [status, setStatus] = useState<PondSalinityStatus | null>(null)
 
   async function load() {
     const [ps, ws] = await Promise.all([
@@ -36,9 +38,32 @@ export default function WaterSamples() {
     }
   }
 
+  async function loadStatus(pondId: number) {
+    if (!pondId) {
+      setStatus(null)
+      return
+    }
+    try {
+      const s = await api<PondSalinityStatus>(
+        `/api/salinity-retest-tickets/pond-status?pondId=${pondId}`,
+      )
+      setStatus(s)
+    } catch {
+      setStatus(null)
+    }
+  }
+
   useEffect(() => {
     load().catch((e) => setError(e.message))
   }, [])
+
+  useEffect(() => {
+    loadStatus(form.pondId)
+  }, [form.pondId])
+
+  async function refresh() {
+    await Promise.all([load(), loadStatus(form.pondId)])
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -52,9 +77,22 @@ export default function WaterSamples() {
         }),
       })
       setForm((f) => ({ ...empty, pondId: f.pondId, sampledAt: nowLocal() }))
-      await load()
+      await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败')
+    }
+  }
+
+  async function createTicket() {
+    setError('')
+    try {
+      await api(
+        `/api/salinity-retest-tickets?pondId=${form.pondId}`,
+        { method: 'POST' },
+      )
+      await loadStatus(form.pondId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '生成工单失败')
     }
   }
 
@@ -62,7 +100,7 @@ export default function WaterSamples() {
     if (!confirm('确认删除该水质样？')) return
     try {
       await api(`/api/water-samples/${id}`, { method: 'DELETE' })
-      await load()
+      await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败')
     }
@@ -73,13 +111,38 @@ export default function WaterSamples() {
     return p ? `${p.pondCode} (${p.species})` : `#${id}`
   }
 
+  // 仅在工单等待复测、且还没登记复测样时允许提交
+  const formDisabled = status != null && !status.canCreateSample
+  const awaitingRetest = status?.phase === 'awaiting_retest'
+
   return (
     <div>
       <header className="page-header">
         <h1>水质采样</h1>
-        <p className="muted">校验：溶解氧 doMgL &gt; 0，pH ∈ [6, 9]</p>
+        <p className="muted">
+          校验：溶解氧 doMgL &gt; 0，pH ∈ [6, 9]；同一塘连续两份盐度 ≥ 35 ppt
+          触发复测工单，工单未关闭前限制采样。
+        </p>
       </header>
       {error && <div className="error">{error}</div>}
+
+      {status && status.reason && (
+        <div className={`notice ${status.blocked ? 'blocked' : 'retest'}`}>
+          <strong>{status.blocked ? '⛔ 采样已拦截' : '🧪 复测进行中'}：</strong>
+          {status.reason}
+        </div>
+      )}
+
+      {status?.phase === 'needs_ticket' && (
+        <button className="btn primary" onClick={createTicket}>
+          生成复测工单
+        </button>
+      )}
+      {status?.phase === 'awaiting_close' && (
+        <Link className="btn ghost" to="/retest-tickets">
+          前往关闭工单
+        </Link>
+      )}
 
       <form className="panel form-grid" onSubmit={onSubmit}>
         <label>
@@ -92,6 +155,7 @@ export default function WaterSamples() {
             {ponds.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.pondCode} · {p.species}
+                {p.retestPending ? '（待复测）' : ''}
               </option>
             ))}
           </select>
@@ -116,12 +180,14 @@ export default function WaterSamples() {
           />
         </label>
         <label>
-          盐度 ppt
+          盐度 ppt{awaitingRetest ? '（复测须 < 32）' : ''}
           <input
             type="number"
             step="0.1"
             value={form.salinityPpt}
-            onChange={(e) => setForm({ ...form, salinityPpt: Number(e.target.value) })}
+            onChange={(e) =>
+              setForm({ ...form, salinityPpt: Number(e.target.value) })
+            }
             required
           />
         </label>
@@ -152,8 +218,13 @@ export default function WaterSamples() {
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
         </label>
-        <button type="submit" className="btn primary">
-          登记水质样
+        <button
+          type="submit"
+          className="btn primary"
+          disabled={formDisabled}
+          title={formDisabled ? '当前塘口被复测规则拦截' : ''}
+        >
+          {awaitingRetest ? '登记复测水质样' : '登记水质样'}
         </button>
       </form>
 
@@ -168,6 +239,7 @@ export default function WaterSamples() {
               <th>盐度</th>
               <th>DO</th>
               <th>pH</th>
+              <th>类型</th>
               <th>备注</th>
               <th />
             </tr>
@@ -179,12 +251,30 @@ export default function WaterSamples() {
                 <td>{pondLabel(r.pondId)}</td>
                 <td>{new Date(r.sampledAt).toLocaleString()}</td>
                 <td>{r.tempC}</td>
-                <td>{r.salinityPpt}</td>
+                <td className={r.salinityPpt >= 35 ? 'sal-high' : ''}>
+                  {r.salinityPpt}
+                </td>
                 <td>{r.doMgL}</td>
                 <td>{r.ph}</td>
+                <td>
+                  {r.retestTicketId != null ? (
+                    <span className="badge retest">复测样</span>
+                  ) : (
+                    <span className="muted">常规</span>
+                  )}
+                </td>
                 <td>{r.notes || '—'}</td>
                 <td>
-                  <button className="btn ghost" onClick={() => remove(r.id)}>
+                  <button
+                    className="btn ghost"
+                    onClick={() => remove(r.id)}
+                    disabled={r.retestTicketId != null}
+                    title={
+                      r.retestTicketId != null
+                        ? '复测样关联工单，不可删除'
+                        : ''
+                    }
+                  >
                     删除
                   </button>
                 </td>

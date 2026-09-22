@@ -18,5 +18,12 @@ class WaterSample(Base):
     do_mg_l: Mapped[float] = mapped_column(Float, nullable=False)
     ph: Mapped[float] = mapped_column(Float, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # 非空表示该水样是某张高盐复测工单下登记的复测样
+    retest_ticket_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("salinity_retest_tickets.id"), nullable=True, index=True
+    )
 
     pond: Mapped["Pond"] = relationship("Pond", back_populates="water_samples")
+    retest_ticket: Mapped[Optional["SalinityRetestTicket"]] = relationship(
+        "SalinityRetestTicket", back_populates="water_samples"
+    )

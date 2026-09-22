@@ -46,11 +46,25 @@ docker compose up --build
 3. **Pond 育苗塘**：`hatcheryId`、`pondCode`、`species`、`volumeM3`、`status(stocked|dry|quarantine)`；同场 `pondCode` 唯一
 4. **WaterSample 水质样**：`pondId`、`sampledAt`、`tempC`、`salinityPpt`、`doMgL`、`ph`、`notes`；`doMgL > 0` 且 `ph ∈ [6,9]`，否则返回 **400**
 5. **FeedEvent 投喂**：`pondId`、`fedAt`、`feedType`、`amountKg`、`operatorName`
-6. **Dashboard**：塘总数、quarantine 数、近 24h 采样数、近 7 日投喂总量 kg
+6. **SalinityRetestTicket 高盐复测工单**：盐度连续超标时的复测闭环（规则见下）
+7. **Dashboard**：塘总数、quarantine 数、近 24h 采样数、近 7 日投喂总量 kg、**待复测塘数**
+
+### 高盐复测工单触发规则
+
+- **触发阈值 35 ppt**：同一塘口按采样时刻排序，**最近两份水质样盐度均 ≥ 35** 时触发复测工单。
+  - 第二份高盐样保存时**自动生成**工单；也可在满足条件时由人工手动生成（`POST /api/salinity-retest-tickets?pondId=`）。
+  - 同塘同一时刻**只允许一张未关闭工单**。
+- **工单未关闭前限制采样**：
+  - 不允许再新建第三份常规水质样（返回 **400**，水质样页展示拦截原因）。
+  - 仅允许创建**恰好一份复测水质样**，其**盐度必须 < 32 ppt**；该样标记为「复测样」且不可删除。
+  - 已登记复测样后仍须先关闭工单，期间禁止继续采样。
+- **关闭工单**：复测样盐度 < 32 ppt 后才可关闭，**关闭说明至少 4 个字**；工单记录所属塘口、触发时刻、关闭时刻（可空）、关闭说明（可空）。
+- 塘口列表行显示「待复测」徽标，仪表盘显示「待复测塘数」。
+- 种子数据中塘 **A-02** 预置连续两份高盐样（35.5 / 36.2 ppt）及一张未关闭复测工单。
 
 ## 前端页面
 
-Login · Dashboard · Hatcheries · Ponds · WaterSamples · FeedEvents
+Login · Dashboard · Hatcheries · Ponds · WaterSamples · RetestTickets · FeedEvents
 
 ## 本地开发（可选）
 
